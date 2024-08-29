@@ -59,7 +59,7 @@ library
     import:           warnings
 
     -- Modules exported by the library.
-    exposed-modules:  MyLib
+    exposed-modules:  Control.Monad.MonoidAction
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -69,6 +69,9 @@ library
 
     -- Other library packages from which modules are imported.
     build-depends:    base ^>=4.17.2.0
+                    , monoid-extras ^>= 0.6
+                    , transformers ^>= 0.6
+                    , mtl ^>= 2.3
 
     -- Directories containing source files.
     hs-source-dirs:   src
