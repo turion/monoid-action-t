@@ -75,7 +75,7 @@ library
     import:           opts
 
     -- Modules exported by the library.
-    exposed-modules:  Control.Monad.MonoidAction
+    exposed-modules:  Control.Monad.Trans.MonoidAction
 
     -- Other library packages from which modules are imported.
     build-depends:    base >= 4.12 && <4.22

@@ -1,4 +1,4 @@
-module Control.Monad.MonoidAction where
+module Control.Monad.Trans.MonoidAction where
 
 -- transformers
 import Control.Monad.Trans.Class
