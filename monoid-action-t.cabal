@@ -66,6 +66,9 @@ common opts
     ghc-options: -Wall
     default-extensions:
         BangPatterns
+        DeriveFunctor
+        ScopedTypeVariables
+        TupleSections
 
 library
     -- Import common warning flags.
