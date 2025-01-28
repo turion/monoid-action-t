@@ -51,21 +51,17 @@ extra-doc-files:    CHANGELOG.md
 -- Extra source files to be distributed with the package, such as examples, or a tutorial module.
 -- extra-source-files:
 
-common warnings
+common opts
     ghc-options: -Wall
+    default-extensions:
+        BangPatterns
 
 library
     -- Import common warning flags.
-    import:           warnings
+    import:           opts
 
     -- Modules exported by the library.
     exposed-modules:  Control.Monad.MonoidAction
-
-    -- Modules included in this library but not exported.
-    -- other-modules:
-
-    -- LANGUAGE extensions used by modules in this package.
-    -- other-extensions:
 
     -- Other library packages from which modules are imported.
     build-depends:    base >= 4.12 && <4.22
@@ -81,7 +77,7 @@ library
 
 test-suite monoid-action-t-test
     -- Import common warning flags.
-    import:           warnings
+    import:           opts
 
     -- Base language which the package is written in.
     default-language: Haskell2010
