@@ -1,6 +1,15 @@
 {
   description = "monoid-action-t";
 
+  nixConfig = {
+    extra-substituters = [
+      "https://monoid-action-t.cachix.org"
+    ];
+    extra-trusted-public-key = [
+      "monoid-action-t.cachix.org-1:qvZhVk91mkIWKyJoppTYKSlNrMXPa3befie8V3L0BAk="
+    ];
+  };
+
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable-small";
     flake-utils.url = "github:numtide/flake-utils";
