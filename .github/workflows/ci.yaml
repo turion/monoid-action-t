@@ -86,8 +86,6 @@ jobs:
         run: cabal build all --enable-tests --enable-benchmarks -fdev
       - name: Cabal test
         run: cabal test all --enable-tests --test-show-details=Always
-      - name: Cabal bench
-        run: cabal bench all
 
   generate-flake-ghc-matrix:
     name: Generate GHC versions for nix flake build matrix
