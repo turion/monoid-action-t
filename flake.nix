@@ -6,10 +6,11 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = {self, nixpkgs, flake-utils}:
+  outputs = { self, nixpkgs, flake-utils }:
     with builtins;
     with nixpkgs.lib;
     let
+      inherit (nixpkgs) lib;
       pname = "monoid-action-t";
       path = ./.;
 
@@ -30,7 +31,7 @@
       ];
 
       haskellPackagesFor = pkgs: genAttrs supportedGhcs (ghc: pkgs.haskell.packages.${ghc})
-          // { default = pkgs.haskellPackages; };
+        // { default = pkgs.haskellPackages; };
 
       hoverlay = pkgs: hfinal: hprev: with pkgs.haskell.lib;
         {
@@ -47,32 +48,33 @@
       };
 
     in
-    flake-utils.lib.eachDefaultSystem (system:
+    flake-utils.lib.eachDefaultSystem
+      (system:
 
-    let
-      pkgs = nixpkgs.legacyPackages.${system}.extend overlay;
-      forEachGHC = mapAttrs (_ghcVersion: haskellPackages: haskellPackages.${pname}) (haskellPackagesFor pkgs);
-      allGHCs = pkgs.linkFarm "${pname}-all-ghcs" forEachGHC;
-    in
-    {
-      packages = forEachGHC // {
-        default = allGHCs;
-      };
+        let
+          pkgs = nixpkgs.legacyPackages.${system}.extend overlay;
+          forEachGHC = mapAttrs (_ghcVersion: haskellPackages: haskellPackages.${pname}) (haskellPackagesFor pkgs);
+          allGHCs = pkgs.linkFarm "${pname}-all-ghcs" forEachGHC;
+        in
+        {
+          packages = forEachGHC // {
+            default = allGHCs;
+          };
 
-      devShells = mapAttrs
-        (ghcVersion: haskellPackages: haskellPackages.shellFor {
-          packages = hps: [hps.${pname}];
-          nativeBuildInputs = (with haskellPackages;
-            optional (versionAtLeast haskellPackages.ghc.version "9.2") haskell-language-server)
-          ++ (with pkgs;
-            [ cabal-install ]
-          )
-          ;
-        })
-        (haskellPackagesFor pkgs);
+          devShells = mapAttrs
+            (ghcVersion: haskellPackages: haskellPackages.shellFor {
+              packages = hps: [ hps.${pname} ];
+              nativeBuildInputs = (with haskellPackages;
+                lib.optional (versionAtLeast haskellPackages.ghc.version "9.2") haskell-language-server)
+              ++ (with pkgs;
+                [ cabal-install ]
+              )
+              ;
+            })
+            (haskellPackagesFor pkgs);
 
-      formatter = pkgs.nixpkgs-fmt;
-    }) // {
+          formatter = pkgs.nixpkgs-fmt;
+        }) // {
       inherit supportedGhcs;
       overlays.default = overlay;
     };
