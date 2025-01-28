@@ -39,7 +39,7 @@ jobs:
       - uses: kleidukos/get-tested@0.1.7.1
         id: set-matrix
         with:
-          cabal-file: "rhine/rhine.cabal"
+          cabal-file: "monoid-action-t.cabal"
           ubuntu: true
           version: 0.1.6.0
 
