@@ -1,12 +1,12 @@
 {
-  description = "monoid-action-t";
+  description = "changeset";
 
   nixConfig = {
     extra-substituters = [
-      "https://monoid-action-t.cachix.org"
+      "https://changeset.cachix.org"
     ];
-    extra-trusted-public-key = [
-      "monoid-action-t.cachix.org-1:qvZhVk91mkIWKyJoppTYKSlNrMXPa3befie8V3L0BAk="
+    extra-trusted-public-keys = [
+      "changeset.cachix.org-1:OsRJ8Eo3VifVZSF6qazmSgkkNKBaAf/yU1Qsw6ZQtRU="
     ];
   };
 
@@ -20,8 +20,13 @@
     with nixpkgs.lib;
     let
       inherit (nixpkgs) lib;
-      pname = "monoid-action-t";
-      path = ./.;
+      projectName = "changeset";
+      localPackages = {
+        changeset = ./changeset;
+        changeset-containers = ./changeset-containers;
+        changeset-lens = ./changeset-lens;
+        changeset-reflex = ./changeset-reflex;
+      };
 
       # Always keep in sync with the tested-with section in the cabal file
       supportedGhcs = [
@@ -43,48 +48,57 @@
         // { default = pkgs.haskellPackages; };
 
       hoverlay = pkgs: hfinal: hprev: with pkgs.haskell.lib;
-        {
-          ${pname} = hfinal.callCabal2nix pname path { };
-        };
+        (mapAttrs (pname: path: hfinal.callCabal2nix pname path { }) localPackages);
 
-      overlay = final: prev: {
-        haskell = prev.haskell // {
-          packageOverrides = composeManyExtensions [
-            (hoverlay prev)
-            prev.haskell.packageOverrides
-          ];
-        };
-      };
+      haskellPackagesExtended = pkgs: mapAttrs
+        (ghcVersion: haskellPackages: haskellPackages.override (_: {
+          overrides = (hoverlay pkgs);
+        }))
+        (haskellPackagesFor pkgs);
 
+      localPackagesFor = haskellPackages: mapAttrs (pname: _path: haskellPackages.${pname}) localPackages;
+      allLocalPackagesFor = pkgs: ghcVersion: haskellPackages:
+        pkgs.linkFarm "${projectName}-all-for-${ghcVersion}"
+          (localPackagesFor haskellPackages);
     in
     flake-utils.lib.eachDefaultSystem
       (system:
 
         let
-          pkgs = nixpkgs.legacyPackages.${system}.extend overlay;
-          forEachGHC = mapAttrs (_ghcVersion: haskellPackages: haskellPackages.${pname}) (haskellPackagesFor pkgs);
-          allGHCs = pkgs.linkFarm "${pname}-all-ghcs" forEachGHC;
+          pkgs = nixpkgs.legacyPackages.${system};
+          forEachGHC = mapAttrs (allLocalPackagesFor pkgs) (haskellPackagesExtended pkgs);
+          allGHCs = pkgs.linkFarm "${projectName}-all-ghcs" forEachGHC;
         in
         {
-          packages = forEachGHC // {
+          # "packages" doesn't allow nested sets
+          legacyPackages = mapAttrs
+            (ghcVersion: haskellPackages: localPackagesFor haskellPackages // {
+              "${projectName}-all" = allLocalPackagesFor pkgs ghcVersion haskellPackages;
+            })
+            (haskellPackagesExtended pkgs) // {
+            "${projectName}-all" = forEachGHC;
+          };
+
+          packages = {
             default = allGHCs;
           };
 
           devShells = mapAttrs
             (ghcVersion: haskellPackages: haskellPackages.shellFor {
-              packages = hps: [ hps.${pname} ];
-              nativeBuildInputs = (with haskellPackages;
-                lib.optional (versionAtLeast haskellPackages.ghc.version "9.2") haskell-language-server)
+              packages = hps: attrValues (localPackagesFor haskellPackages);
+              nativeBuildInputs = (
+                lib.optional (versionAtLeast haskellPackages.ghc.version "9.2")
+                  haskellPackages.haskell-language-server)
               ++ (with pkgs;
                 [ cabal-install ]
               )
               ;
             })
-            (haskellPackagesFor pkgs);
+            (haskellPackagesExtended pkgs);
 
           formatter = pkgs.nixpkgs-fmt;
         }) // {
       inherit supportedGhcs;
-      overlays.default = overlay;
+      inherit hoverlay;
     };
 }
