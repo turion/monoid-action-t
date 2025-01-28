@@ -113,6 +113,18 @@ jobs:
           nix fmt
           git diff --exit-code
 
+  check-cabal-file:
+    name: Check cabal file
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: haskell-actions/setup@v2
+      - uses: tfausak/cabal-gild-setup-action@v2
+        with:
+          version: 1.3.0.1
+      - run: cabal check
+      - run: cabal-gild --mode=check --input=monoid-action-t.cabal
+
   build-flake:
     name: Nix Flake
     needs:
