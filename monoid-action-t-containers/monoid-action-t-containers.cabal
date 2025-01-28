@@ -1,0 +1,83 @@
+cabal-version: 3.0
+name: monoid-action-t-containers
+-- PVP summary:     +-+------- breaking API changes
+--                  | | +----- non-breaking API additions
+--                  | | | +--- code changes with no API change
+version: 0.1.0.0
+synopsis: Stateful monad transformer based on monoidal actions
+description:
+  A general state monad transformer with separate types for the state and the possible updates.
+  It can be defined for any monoid action.
+  The monoid represents "updates", "edits" or "diffs" on the state.
+
+license: MIT
+license-file: LICENSE
+author: Manuel Bärenz
+maintainer: programming@manuelbaerenz.de
+copyright: MIT
+category: Control
+build-type: Simple
+extra-doc-files: CHANGELOG.md
+
+source-repository head
+  type: git
+  location: https://github.com/turion/monoid-action-t
+
+flag dev
+  description: Enable warnings as errors. Active on ci.
+  default: False
+  manual: True
+
+common opts
+  ghc-options:
+    -Wall
+
+  if flag(dev)
+    ghc-options:
+      -Werror
+  default-extensions:
+    BangPatterns
+    DeriveFunctor
+    FlexibleInstances
+    FunctionalDependencies
+    GADTs
+    KindSignatures
+    MultiParamTypeClasses
+    NamedFieldPuns
+    RankNTypes
+    ScopedTypeVariables
+    TupleSections
+    TypeOperators
+
+library
+  import: opts
+  exposed-modules:
+    Data.Monoid.Action.IntMap
+    Data.Monoid.Action.IntSet
+    Data.Monoid.Action.Map
+    Data.Monoid.Action.Sequence
+    Data.Monoid.Action.Set
+
+  build-depends:
+    base >=4.12 && <4.22,
+    containers >=0.6 && <0.8,
+    monoid-extras ^>=0.6,
+
+  hs-source-dirs: src
+  default-language: Haskell2010
+
+test-suite monoid-action-t-containers-test
+  import: opts
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is: Main.hs
+  build-depends:
+    base,
+    containers,
+    falsify ^>=0.2,
+    monoid-action-t,
+    monoid-action-t-containers,
+    monoid-extras,
+    tasty ^>=1.4.2,
+    tasty-hunit ^>=0.10.2,
