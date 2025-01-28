@@ -6,13 +6,13 @@ import Control.Monad.Trans.Class
 -- mtl
 
 -- monoid-extras
-import Data.Monoid.Action (act, Action)
+import Data.Monoid.Action (Action, act)
 
 -- | Hold a state of type @s@, which is allowed to be mutated by an action of a monoid @w@.
 newtype MonoidActionT s w m a = MonoidActionT
   { runMonoidActionT :: s -> m (w, a)
   }
-  deriving Functor
+  deriving (Functor)
 
 instance (Monoid w, Applicative m) => Applicative (MonoidActionT s w m) where
   pure a = MonoidActionT $ const $ pure (mempty, a)
@@ -28,7 +28,7 @@ instance (Action w s, Monoid w, Monad m) => Monad (MonoidActionT s w m) where
     runMonoidActionT (f a) s'
 
 instance (Action w s, Monoid w) => MonadTrans (MonoidActionT s w) where
-  lift = MonoidActionT . const . fmap (mempty, )
+  lift = MonoidActionT . const . fmap (mempty,)
 
 -- FIXME lift mtl classes
 -- FIXME fused-effects
