@@ -1,0 +1,148 @@
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  schedule:
+    - cron: '23 14 * * 2'
+name: build
+jobs:
+  lint:
+    name: "Run hlint"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up HLint
+      uses: haskell-actions/hlint-setup@v2
+      with:
+        version: "3.6.1"
+    - name: Run HLint
+      uses: haskell-actions/hlint-run@v2
+      with:
+        fail-on: warning
+
+  fourmolu:
+    name: "Run fourmolu"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: haskell-actions/run-fourmolu@v11
+      with:
+        version: "0.14.0.0"
+
+  generateMatrix:
+    name: "Generate matrix from cabal"
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: kleidukos/get-tested@0.1.7.1
+        id: set-matrix
+        with:
+          cabal-file: "rhine/rhine.cabal"
+          ubuntu: true
+          version: 0.1.6.0
+
+  build-cabal:
+    runs-on: ubuntu-latest
+    needs: generateMatrix
+    strategy:
+      matrix: ${{ fromJSON(needs.generateMatrix.outputs.matrix) }}
+    name: Haskell GHC ${{ matrix.ghc }} cabal
+    steps:
+      - uses: actions/checkout@v4
+      - uses: haskell-actions/setup@v2
+        id: setup
+        with:
+          ghc-version: ${{ matrix.ghc }}
+      - name: Configure the build
+        run: |
+          cabal configure --enable-tests --enable-benchmarks --disable-documentation
+          cabal build all --dry-run
+        # The last step generates dist-newstyle/cache/plan.json for the cache key.
+      - name: Restore cached dependencies
+        uses: actions/cache/restore@v4
+        id: cache
+        env:
+          key: ${{ runner.os }}-ghc-${{ steps.setup.outputs.ghc-version }}-cabal-${{ steps.setup.outputs.cabal-version }}
+        with:
+          path: ${{ steps.setup.outputs.cabal-store }}
+          key: ${{ env.key }}-plan-${{ hashFiles('**/plan.json') }}
+          restore-keys: ${{ env.key }}-
+      - name: Install dependencies
+        # If we had an exact cache hit, the dependencies will be up to date.
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: cabal build all --enable-tests --enable-benchmarks --only-dependencies
+      # Cache dependencies already here, so that we do not have to rebuild them should the subsequent steps fail.
+      - name: Save cached dependencies
+        uses: actions/cache/save@v4
+        # If we had an exact cache hit, trying to save the cache would error because of key clash.
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ steps.setup.outputs.cabal-store }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+
+      - name: Cabal build packages
+        run: cabal build all --enable-tests --enable-benchmarks -fdev
+      - name: Cabal test
+        run: cabal test all --enable-tests --test-show-details=Always
+      - name: Cabal bench
+        run: cabal bench all
+
+  generate-flake-ghc-matrix:
+    name: Generate GHC versions for nix flake build matrix
+    runs-on: ubuntu-latest
+    outputs:
+      versions: ${{ steps.generate-versions.outputs.versions }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v30
+      - uses: DeterminateSystems/magic-nix-cache-action@v8
+      - name: Generate versions
+        id: generate-versions
+        run: |
+          echo -n "versions=" >> "$GITHUB_OUTPUT"
+          nix eval .#supportedGhcs --json >> "$GITHUB_OUTPUT"
+
+  check-flake:
+    name: Check Flake
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v30
+      - uses: DeterminateSystems/magic-nix-cache-action@v8
+      - run: nix flake check
+      - name: Check whether .nix files are formatted
+        run: |
+          nix fmt
+          git diff --exit-code
+
+  build-flake:
+    name: Nix Flake
+    needs:
+      - generate-flake-ghc-matrix
+    strategy:
+      matrix:
+        version: ${{ fromJSON(needs.generate-flake-ghc-matrix.outputs.versions) }}
+        os:
+          - ubuntu-latest
+          - macos-latest
+      fail-fast: false # So the cache is still filled
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v30
+      - uses: DeterminateSystems/magic-nix-cache-action@v8
+      - run: nix build .#${{ matrix.version }}
+      - run: nix develop .#${{ matrix.version }} -c cabal update
+      - run: nix develop .#${{ matrix.version }} -c cabal test
+
+  success:
+    name: Successfully build and test on all systems
+    needs:
+      - build-cabal
+      - build-flake
+    runs-on:
+      - ubuntu-latest
+    steps:
+      - run: echo "Success"

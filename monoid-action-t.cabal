@@ -68,23 +68,23 @@ library
     -- other-extensions:
 
     -- Other library packages from which modules are imported.
-    build-depends:    base ^>=4.17.2.0
+    build-depends:    base >= 4.12 && <4.22
                     , monoid-extras ^>= 0.6
-                    , transformers ^>= 0.6
-                    , mtl ^>= 2.3
+                    , transformers >= 0.5.6 && < 0.7
+                    , mtl >= 2.2 && < 2.4
 
     -- Directories containing source files.
     hs-source-dirs:   src
 
     -- Base language which the package is written in.
-    default-language: GHC2021
+    default-language: Haskell2010
 
 test-suite monoid-action-t-test
     -- Import common warning flags.
     import:           warnings
 
     -- Base language which the package is written in.
-    default-language: GHC2021
+    default-language: Haskell2010
 
     -- Modules included in this executable, other than Main.
     -- other-modules:
@@ -103,5 +103,5 @@ test-suite monoid-action-t-test
 
     -- Test dependencies.
     build-depends:
-        base ^>=4.17.2.0,
+        base,
         monoid-action-t
