@@ -51,6 +51,17 @@ extra-doc-files:    CHANGELOG.md
 -- Extra source files to be distributed with the package, such as examples, or a tutorial module.
 -- extra-source-files:
 
+tested-with:
+  ghc ==8.6
+  ghc ==8.8
+  ghc ==8.10
+  ghc ==9.0
+  ghc ==9.2
+  ghc ==9.4
+  ghc ==9.6
+  ghc ==9.8
+  ghc ==9.10
+
 common opts
     ghc-options: -Wall
     default-extensions:
