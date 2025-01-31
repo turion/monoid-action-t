@@ -1,12 +1,12 @@
 {
-  description = "monoid-action-t";
+  description = "changeset";
 
   nixConfig = {
     extra-substituters = [
-      "https://monoid-action-t.cachix.org"
+      "https://changeset.cachix.org"
     ];
     extra-trusted-public-keys = [
-      "monoid-action-t.cachix.org-1:qvZhVk91mkIWKyJoppTYKSlNrMXPa3befie8V3L0BAk="
+      "changeset.cachix.org-1:OsRJ8Eo3VifVZSF6qazmSgkkNKBaAf/yU1Qsw6ZQtRU="
     ];
   };
 
@@ -20,12 +20,13 @@
     with nixpkgs.lib;
     let
       inherit (nixpkgs) lib;
-      projectName = "monoid-action-t";
+      projectName = "changeset";
       localPackages = {
-        monoid-action-t = ./monoid-action-t;
-        monoid-action-t-containers = ./monoid-action-t-containers;
-        monoid-action-t-fused-effects = ./monoid-action-t-fused-effects;
-        monoid-action-t-lens = ./monoid-action-t-lens;
+        changeset = ./changeset;
+        changeset-containers = ./changeset-containers;
+        changeset-fused-effects = ./changeset-fused-effects;
+        changeset-lens = ./changeset-lens;
+        changeset-reflex = ./changeset-reflex;
       };
 
       # Always keep in sync with the tested-with section in the cabal file

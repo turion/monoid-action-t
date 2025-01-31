@@ -39,7 +39,7 @@ jobs:
       - uses: kleidukos/get-tested@0.1.7.1
         id: set-matrix
         with:
-          cabal-file: "monoid-action-t/monoid-action-t.cabal"
+          cabal-file: "changeset/changeset.cabal"
           ubuntu: true
           version: 0.1.6.0
 
@@ -138,9 +138,9 @@ jobs:
       - uses: cachix/install-nix-action@v30
       - uses: cachix/cachix-action@v15
         with:
-          name: monoid-action-t
+          name: changeset
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-      - run: nix build .#${{ matrix.version }}.monoid-action-t-all --accept-flake-config
+      - run: nix build .#${{ matrix.version }}.changeset-all --accept-flake-config
       - run: nix develop .#${{ matrix.version }} --accept-flake-config -c cabal update -fdev
       - run: nix develop .#${{ matrix.version }} --accept-flake-config -c cabal test all -fdev
 
