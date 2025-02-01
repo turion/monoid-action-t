@@ -13,10 +13,13 @@ import Data.List (foldl')
 import Prelude hiding (Foldable (..))
 
 -- transformers
-import Control.Monad.Trans.Class (MonadTrans (lift))
+import Control.Monad.Trans.Class (MonadTrans)
+
+-- mmorph
+import Control.Monad.Morph (MFunctor (..))
 
 -- lens
-import Control.Lens (Getting, Index, IxValue, Ixed (..), Lens', Setter', Traversal', view, (%~))
+import Control.Lens (Getting, Index, IxValue, Ixed (..), Lens', Setter', Traversal', view, (%~), Prism', review)
 
 -- containers
 import Data.Map.Strict (Map)
@@ -74,14 +77,20 @@ lensChangeset l w = setterChangeset l w
 traversalChangeset :: Traversal' s a -> w -> SetterChangeset s a w
 traversalChangeset t w = setterChangeset t w
 
-instance (Action w a, Action w s, Monoid w, Monad m) => Focus s a w (ChangesetT s w m) (ChangesetT a w m) where
+class (MonadChangeset a w m, MonadChangeset s w n) => Focus m n a s w where
+  focus :: Getting a s a -> m x -> n x
+
+instance (Action w a, Action w s, Monoid w, Monad m) => Focus (ChangesetT a w m) (ChangesetT s w m) a s w where
   focus g ChangesetT {getChangesetT} = ChangesetT $ \s -> getChangesetT $ view g s
 
-class (MonadChangeset s w m, MonadChangeset a w n) => Focus s a w m n where
-  focus :: Getting a s a -> n x -> m x
+instance (Monad m, MonadTrans t, MFunctor t, Focus m n s a w, Monad (t m)) => Focus (t m) (t n) s a w where
+  focus getting = hoist $ focus getting
 
-instance (MonadTrans t, Focus s a w m n, MonadChangeset s w (t m)) => Focus s a w (t m) n where
-  focus getting = lift . focus getting
+class (MonadChangeset s v m, MonadChangeset s w n) => Specify s m n v w where
+  specify :: Prism' w v -> m x -> n x
+
+instance (Monad m, Monoid w, Monoid v, Action w s, Action v s) => Specify s (ChangesetT s v m) (ChangesetT s w m) v w where
+  specify prism = mapChange $ review prism
 
 (<>|>) :: (MonadChangeset s (SetterChangeset s a w) m) => Setter' s a -> w -> m ()
 setter <>|> w = change $ setterChangeset setter w
