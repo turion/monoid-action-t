@@ -80,6 +80,7 @@ test-suite changeset-lens-test
   build-depends:
     base,
     changeset,
+    changeset-containers,
     changeset-lens,
     falsify ^>=0.2,
     lens,

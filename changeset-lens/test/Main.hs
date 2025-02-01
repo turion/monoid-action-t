@@ -28,6 +28,7 @@ import Control.Monad.Trans.Changeset
 
 -- changeset-lens
 import Control.Monad.Changeset.Lens
+import Data.Monoid.Action.IntMap
 
 data Count = Increment
 
@@ -57,4 +58,19 @@ main =
           ""
           [ testCase "" $ execChangeset (change (lensChangeset lensCounter [Increment])) (Big "foo" 0) @?= Big "foo" 1
           ]
+      , testGroup "containers"
+      [
+            testCase "Can adjust after insert" $
+          let action = do
+                change [Insert 0 True :: IntMapChange Bool]
+                change [Adjust 0 (Endo not)]
+           in execChangeset action mempty @?= singleton 0 False
+      , testCase "adjust only affects same key" $
+          let action = do
+                change [Insert 0 True :: IntMapChange Bool]
+                change [Adjust 1 (Endo not)]
+           in execChangeset action mempty @?= singleton 0 True
+      ]
+           -- FIXME something with IntMapChange (SetterChangeset Big Count)
+
       ]
