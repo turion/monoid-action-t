@@ -35,5 +35,3 @@ instance {-# OVERLAPPABLE #-} (Monad m, Monad (t m), MonadTrans t, MFunctor t, M
   changeset = lift . changeset
   change = lift . change
   current = lift current
-
--- changelog f = hoist $ changelog f

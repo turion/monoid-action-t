@@ -1,5 +1,4 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
-
 module Control.Monad.Trans.Changeset.Examples where
 
 -- base

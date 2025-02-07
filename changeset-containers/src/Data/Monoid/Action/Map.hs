@@ -6,6 +6,7 @@ import Data.Monoid.Action (Action (..))
 data MapChange k a
   = Insert k a
   | Delete k
+  deriving (Show, Read, Eq, Ord, Functor)
 
 instance (Ord k) => Action (MapChange k a) (Map k a) where
   act (Insert k a) = insert k a

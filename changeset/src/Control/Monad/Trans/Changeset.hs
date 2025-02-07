@@ -1,5 +1,4 @@
 {-# LANGUAGE UndecidableInstances #-}
-{-# OPTIONS_GHC -Wno-unused-local-binds #-}
 
 {- | A general state monad transformer with separate types for the state and the possible changes, updates, commits, or diffs.
 
@@ -13,7 +12,7 @@ It has all the standard state monads from @transformers@ as special cases:
 +--------------------------+-------------+-------------+---------------------------------------------+
 | @'AccumT' w@             | 'Regular w' | @w@         | The state is the same type as the changes   |
 +--------------------------+-------------+-------------+---------------------------------------------+
-| @'StateT' s@             | @s@         | @Last s@    | The change overwrites all previous changes  |
+| @'StateT' s@             | @s@         | @First s@   | The change overwrites all previous changes  |
 +--------------------------+-------------+-------------+---------------------------------------------+
 
 But there are very useful state change applications not covered by these.
@@ -50,6 +49,10 @@ import Data.Function ((&))
 import Data.Functor ((<&>))
 import Data.Functor.Identity (Identity (runIdentity))
 import Data.Tuple (swap)
+import Data.Foldable (foldr')
+
+-- containers
+import Data.Sequence (Seq, fromList, (|>))
 
 -- transformers
 import Control.Monad.Trans.Class
@@ -137,6 +140,10 @@ newtype ChangesetT s w m a = ChangesetT
 
 -- ** Running a 'ChangesetT' action
 
+-- | Extract the changes that would be applied.
+getChangeT :: (Functor m) => ChangesetT s w m a -> s -> m w
+getChangeT ChangesetT {getChangesetT} s = getChangesetT s <&> fst
+
 -- | Run the action with an initial state and apply all resulting changes to it.
 runChangesetT :: (Functor m, Action w s) => ChangesetT s w m a -> s -> m (a, s)
 runChangesetT ChangesetT {getChangesetT} s = getChangesetT s <&> \(w, a) -> (a, act w s)
@@ -172,6 +179,18 @@ The @A@ suffix means that only 'Applicative' is required, not 'Monad'.
 currentA :: (Applicative m, Monoid w) => ChangesetT s w m s
 currentA = ChangesetT $ \s -> pure (mempty, s)
 
+instance (Action w s, Monoid w, Monad m) => MonadChangeset s w (ChangesetT s w m) where
+  change = changeA
+  current = currentA
+  changeset = changesetA
+
+-- | Like 'lift' from the 'MonadTrans' class, but with fewer constraints.
+liftF :: (Functor m, Monoid w) => m a -> ChangesetT s w m a
+liftF = ChangesetT . const . fmap (mempty,)
+
+instance (Action w s, Monoid w) => MonadTrans (ChangesetT s w) where
+  lift = liftF
+
 -- ** Transforming 'ChangesetT' operations
 
 {- | Change the action that would be applied.
@@ -182,11 +201,11 @@ It has to output the action that will be applied instead.
 revise :: (Functor m) => ChangesetT s w m (a, s -> w -> w) -> ChangesetT s w m a
 revise ChangesetT {getChangesetT} = ChangesetT $ \s -> getChangesetT s <&> \(w, (a, f)) -> (f s w, a)
 
--- | Adds the currently to be applied changes to the foreground value.
+-- | Adds the to-be-applied changes to the foreground value.
 changelog :: (Functor m) => ChangesetT s w m a -> ChangesetT s w m (a, w)
 changelog ChangesetT {getChangesetT} = ChangesetT $ fmap (\(w, a) -> (w, (a, w))) . getChangesetT
 
--- | Applies a function to the current state.
+-- | Precomposes the current state with a function to  before computing the change.
 withCurrent :: (s2 -> s1) -> ChangesetT s1 w m a -> ChangesetT s2 w m a
 withCurrent f = ChangesetT . (. f) . getChangesetT
 
@@ -194,14 +213,12 @@ withCurrent f = ChangesetT . (. f) . getChangesetT
 mapChange :: (Functor m) => (w1 -> w2) -> ChangesetT s w1 m a -> ChangesetT s w2 m a
 mapChange f = ChangesetT . fmap (fmap (first f)) . getChangesetT
 
-instance (Action w s, Monoid w, Monad m) => MonadChangeset s w (ChangesetT s w m) where
-  change = changeA
-  current = currentA
-  changeset = changesetA
-
 -- ** Combining 'ChangesetT' operations
 
--- | Like '(<*>)' from 'Applicative, but ignore the change from the first action in the initial state for the second action.
+{- | Like '(<*>)' from 'Applicative', but ignore the change from the first action in the initial state for the second action.
+
+This only needs an 'Applicative' constraint on @m@, not 'Monad'.
+-}
 (|*>) :: (Semigroup w, Applicative m) => ChangesetT s w m (a -> b) -> ChangesetT s w m a -> ChangesetT s w m b
 ChangesetT mf |*> ChangesetT ma = ChangesetT $ \s -> (\(w1, f) (w2, a) -> (w1 <> w2, f a)) <$> mf s <*> ma s
 
@@ -221,13 +238,6 @@ instance (Action w s, Monoid w, Monad m) => Monad (ChangesetT s w m) where
     let !s' = act w1 s
     (w2, b) <- getChangesetT (f a) s'
     return (w1 <> w2, b)
-
-instance (Action w s, Monoid w) => MonadTrans (ChangesetT s w) where
-  lift = liftF
-
--- | Like 'lift' from the 'MonadTrans' class, but with fewer constraints.
-liftF :: (Functor m, Monoid w) => m a -> ChangesetT s w m a
-liftF = ChangesetT . const . fmap (mempty,)
 
 instance (Alternative m, Monoid w, Action w s, Monad m) => Alternative (ChangesetT s w m) where
   empty = liftF empty
@@ -281,6 +291,10 @@ type Changeset s w = ChangesetT s w Identity
 getChangeset :: Changeset s w a -> s -> (w, a)
 getChangeset swa s = runIdentity $ getChangesetT swa s
 
+-- | Like 'getChangeT'.
+getChange :: Changeset s w a -> s -> w
+getChange swa s = runIdentity $ getChangeT swa s
+
 -- | Like 'runChangesetT'.
 runChangeset :: (Action w s) => Changeset s w a -> s -> (a, s)
 runChangeset swa s = runIdentity $ runChangesetT swa s
@@ -292,3 +306,28 @@ evalChangeset swa s = runIdentity $ evalChangesetT swa s
 -- | Like 'execChangesetT'.
 execChangeset :: (Action w s) => Changeset s w a -> s -> s
 execChangeset swa s = runIdentity $ execChangesetT swa s
+
+-- * 'Changes': container for changes that don't have a 'Monoid' instance
+
+-- FIXME delete containers dep again?
+
+-- | Collect changes
+newtype Changes w = Changes {getChanges :: Seq w}
+  deriving (Show, Read, Eq, Ord)
+  deriving newtype (Semigroup, Monoid, Foldable, Functor)
+
+changes :: [w] -> Changes w
+changes = Changes . fromList
+
+addChange :: w -> Changes w -> Changes w
+addChange w = Changes . (|> w) . getChanges
+
+-- FIXME operator? shorthand?
+singleChange :: w -> Changes w
+singleChange = Changes . pure
+
+changeSingle :: (MonadChangeset s (Changes w) m) => w -> m ()
+changeSingle = change . singleChange
+
+instance (Action w s) => Action (Changes w) s where
+  act Changes {getChanges} s = foldr' act s getChanges

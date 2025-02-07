@@ -19,7 +19,7 @@ import Control.Monad.Trans.Class (MonadTrans)
 import Control.Monad.Morph (MFunctor (..))
 
 -- lens
-import Control.Lens (Getting, Index, IxValue, Ixed (..), Lens', Setter', Traversal', view, (%~), Prism', review)
+import Control.Lens (Getting, Index, IxValue, Ixed (..), Lens', Prism', Setter', Traversal', review, view, (%~))
 
 -- containers
 import Data.Map.Strict (Map)
@@ -36,6 +36,7 @@ import Control.Monad.Changeset.Class (
   MonadChangeset (..),
  )
 import Control.Monad.Trans.Changeset
+import Data.Monoid (First (..))
 
 -- We assume that all indices edit different parts, so we can merge them in a map
 newtype IxedChangeset s w = IxedChangeset
@@ -83,7 +84,8 @@ class (MonadChangeset a w m, MonadChangeset s w n) => Focus m n a s w where
 instance (Action w a, Action w s, Monoid w, Monad m) => Focus (ChangesetT a w m) (ChangesetT s w m) a s w where
   focus g ChangesetT {getChangesetT} = ChangesetT $ \s -> getChangesetT $ view g s
 
-instance (Monad m, MonadTrans t, MFunctor t, Focus m n s a w, Monad (t m)) => Focus (t m) (t n) s a w where
+-- TODO These instances can be reduced a bit, starting with GHC 9.6 I believe
+instance (Monad m, Monad (t m), Monad n, Monad (t n), MonadTrans t, MFunctor t, Focus m n s a w) => Focus (t m) (t n) s a w where
   focus getting = hoist $ focus getting
 
 class (MonadChangeset s v m, MonadChangeset s w n) => Specify s m n v w where
@@ -95,5 +97,11 @@ instance (Monad m, Monoid w, Monoid v, Action w s, Action v s) => Specify s (Cha
 (<>|>) :: (MonadChangeset s (SetterChangeset s a w) m) => Setter' s a -> w -> m ()
 setter <>|> w = change $ setterChangeset setter w
 
+(.|>) :: (MonadChangeset s (SetterChangeset s a (First a)) m) => Setter' s a -> a -> m ()
+setter .|> a = setter <>|> First (Just a)
+
 (<>@|>) :: (MonadChangeset s (IxedChangeset s w) m) => Index s -> w -> m ()
 index <>@|> w = change $ ixedChangeset index w
+
+(.@|>) :: (MonadChangeset s (IxedChangeset s (First (IxValue s))) m) => Index s -> IxValue s -> m ()
+index .@|> w = index <>@|> First (Just w)

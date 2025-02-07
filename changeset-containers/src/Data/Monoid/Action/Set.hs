@@ -6,6 +6,7 @@ import Data.Set
 data SetChange k
   = Insert k
   | Delete k
+  deriving (Show, Read, Eq, Ord)
 
 instance (Ord k) => Action (SetChange k) (Set k) where
   act (Insert k) = insert k
