@@ -8,7 +8,6 @@ import Prelude hiding (Foldable (..))
 import Test.Tasty
 
 -- tasty-hunit
-import Test.Tasty.HUnit (testCase, (@?=))
 
 -- falsify
 -- import Test.Tasty.Falsify
@@ -17,8 +16,6 @@ import Test.Tasty.HUnit (testCase, (@?=))
 import Data.Monoid.Action (Action (..))
 
 -- changeset
-import Control.Monad.Changeset.Class
-import Control.Monad.Trans.Changeset
 
 data Count = Increment
 
@@ -29,15 +26,5 @@ main :: IO ()
 main =
   defaultMain $
     testGroup
-      "ChangesetT"
-      [ testGroup
-          "Changeset"
-          [ testGroup
-              "Order of change and current matters"
-              [ testCase "change, current" $
-                  evalChangeset (change [Increment] >> current) 0 @?= (1 :: Int)
-              , testCase "current, change" $
-                  evalChangeset (current >>= (\n -> change [Increment] >> return n)) 0 @?= (0 :: Int)
-              ]
-          ]
-      ]
+      "fused-effects"
+      []

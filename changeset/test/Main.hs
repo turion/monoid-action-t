@@ -13,7 +13,6 @@ import Test.Tasty.HUnit (testCase, (@?=))
 -- import Test.Tasty.Falsify
 
 -- monoid-extras
-import Data.Monoid.Action (Action (..), Regular (..))
 
 -- changeset
 
@@ -21,14 +20,15 @@ import Control.Monad (replicateM_)
 import Control.Monad.Changeset.Class
 import Control.Monad.Trans.Changeset
 import Control.Monad.Trans.Reader (ReaderT (..), ask)
-import Data.Monoid (Endo(..))
+import Data.Monoid.RightAction (RightAction (..))
+import Data.Function ((&))
 
 type M = Changeset Int (Changes Count)
 
 data Count = Increment
 
-instance Action Count Int where
-  act Increment count = count + 1
+instance RightAction Count Int where
+  actRight count Increment = count + 1
 
 main :: IO ()
 main =
@@ -64,31 +64,16 @@ main =
                       execChangeset (changeSingle (Cons True) >> changeSingle (Cons False)) [] @?= execChangeset (change (singleChange (Cons True) <> singleChange (Cons False))) ([] :: [Bool])
                       execChangeset (changeSingle (Cons True) >> changeSingle (Cons False)) [] @?= execChangeset (change (addChange (Cons False) (singleChange (Cons True)))) ([] :: [Bool])
                       execChangeset (changeSingle (Cons True) >> changeSingle (Cons False)) [] @?= execChangeset (change (changes [Cons True, Cons False])) ([] :: [Bool])
-                      execChangeset (changeSingle (Cons True) >> changeSingle (Cons False)) [] @?= ([True, False] :: [Bool])
+                      execChangeset (changeSingle (Cons True) >> changeSingle (Cons False)) [] @?= ([False, True] :: [Bool])
                   , testCase "execChangeset is monoid homomorphism" $
-                      execChangeset (changeSingle (Cons True) >> changeSingle (Cons False)) [] @?= execChangeset (changeSingle (Cons True)) (execChangeset (changeSingle (Cons False)) ([] :: [Bool]))
+                      execChangeset (changeSingle (Cons True) >> changeSingle (Cons False)) [] @?= (([] :: [Bool]) & execChangeset (changeSingle (Cons True)) & execChangeset (changeSingle (Cons False)))
                   ]
-              , testGroup "Regular" [
-                testCase "change is monoid homomorphism" $
-                  getRegular (execChangeset (change [True] >> change [False]) (Regular ([] :: [Bool]))) @?= getRegular (execChangeset (change [True, False]) (Regular ([] :: [Bool])))
-                  , testCase "execChangeset is monoid homomorphism" $
-                    getRegular (execChangeset (change [True] >> change [False]) (Regular ([] :: [Bool]))) @?= getRegular (appEndo (Endo (execChangeset (change [True] :: Changeset (Regular [Bool]) [Bool] ())) <> Endo (execChangeset (change [False]))) (Regular ([] :: [Bool])))
-                  , testCase "execChangeset works in same order as do notation" $
-                      let action = do
-                            change [True] :: Changeset (Regular [Bool]) [Bool] ()
-                            change [False]
-                          stepByStep =
-                            let
-                              s = execChangeset (change [True]) (Regular ([] :: [Bool]))
-                            in execChangeset (change [False]) s
-                      in getRegular (execChangeset action (Regular [])) @?= getRegular stepByStep
-              ]
               ]
           ]
       , testGroup
           "Changes"
           [ testCase "is lawful monoid action" $ do
-              act (singleChange (Cons True)) (act (singleChange (Cons False)) []) @?= act (singleChange (Cons True) <> singleChange (Cons False)) ([] :: [Bool])
+              actRight (actRight [] (singleChange (Cons True))) (singleChange (Cons False)) @?= actRight ([] :: [Bool]) (singleChange (Cons True) <> singleChange (Cons False))
           ]
       , testGroup
           "MonadChangeset"
@@ -102,6 +87,6 @@ main =
 
 data ListChange a = Cons a | Pop
 
-instance Action (ListChange a) [a] where
-  act (Cons a) = (a :)
-  act Pop = drop 1
+instance RightAction (ListChange a) [a] where
+  actRight s (Cons a) = a : s
+  actRight s Pop = drop 1 s

@@ -5,7 +5,6 @@ module Main (main) where
 
 -- base
 import Data.Foldable (foldl')
-import Data.Monoid (Endo (..))
 import Prelude hiding (Foldable (..))
 
 -- containers
@@ -21,19 +20,19 @@ import Test.Tasty.HUnit (testCase, (@?=))
 -- import Test.Tasty.Falsify
 
 -- monoid-extras
-import Data.Monoid.Action (Action (..))
+import Data.Monoid.RightAction (RightAction (..))
 
 -- changeset
 import Control.Monad.Changeset.Class
 import Control.Monad.Trans.Changeset
 
 -- changeset-containers
-import Data.Monoid.Action.IntMap
+import Data.Monoid.RightAction.IntMap
 
--- instance (Foldable f, Action w s) => Action (f w) s where
+-- instance (Foldable f, RightAction w s) => RightAction (f w) s where
 --   act ws s = foldl' (flip act) s ws
-instance (Action w s) => Action [w] s where
-  act ws s = foldl' (flip act) s ws
+instance (RightAction w s) => RightAction [w] s where
+  actRight = foldl' actRight
 
 main :: IO ()
 main =

@@ -29,7 +29,7 @@ import Data.Sequence (Seq)
 import Data.Map.Monoidal (MonoidalMap, foldlWithKey', singleton)
 
 -- monoid-extras
-import Data.Monoid.Action
+import Data.Monoid.RightAction
 
 -- changeset
 import Control.Monad.Changeset.Class (
@@ -49,8 +49,8 @@ deriving instance (Ord (Index s), Ord w) => Ord (IxedChangeset s w)
 deriving instance (Show (Index s), Show w) => Show (IxedChangeset s w)
 deriving instance (Ord (Index s), Read (Index s), Read w) => Read (IxedChangeset s w)
 
-instance (Action w (IxValue s), Ixed s) => Action (IxedChangeset s w) s where
-  act IxedChangeset {getIxedChangeset} s = foldlWithKey' (\s' i w -> s' & ix i %~ act w) s getIxedChangeset
+instance (RightAction w (IxValue s), Ixed s) => RightAction (IxedChangeset s w) s where
+  actRight s IxedChangeset {getIxedChangeset} = foldlWithKey' (\s' i w -> s' & ix i %~ flip actRight w) s getIxedChangeset
 
 ixedChangeset :: Index s -> w -> IxedChangeset s w
 ixedChangeset i = IxedChangeset . singleton i
@@ -66,8 +66,8 @@ newtype SetterChangeset s a w = SetterChangeset
   {getSetterChangeset :: Seq (SetterChange s a w)}
   deriving newtype (Semigroup, Monoid)
 
-instance (Action w a) => Action (SetterChangeset s a w) s where
-  act SetterChangeset {getSetterChangeset} s = foldl' (\s' SetterChange {setterChangeSetter, setterChangeChange} -> s' & setterChangeSetter %~ act setterChangeChange) s getSetterChangeset
+instance (RightAction w a) => RightAction (SetterChangeset s a w) s where
+  actRight s SetterChangeset {getSetterChangeset} = foldl' (\s' SetterChange {setterChangeSetter, setterChangeChange} -> s' & setterChangeSetter %~ flip actRight setterChangeChange) s getSetterChangeset
 
 setterChangeset :: Setter' s a -> w -> SetterChangeset s a w
 setterChangeset setterChangeSetter setterChangeChange = SetterChangeset $ pure $ SetterChange {setterChangeSetter, setterChangeChange}
@@ -81,7 +81,7 @@ traversalChangeset t w = setterChangeset t w
 class (MonadChangeset a w m, MonadChangeset s w n) => Focus m n a s w where
   focus :: Getting a s a -> m x -> n x
 
-instance (Action w a, Action w s, Monoid w, Monad m) => Focus (ChangesetT a w m) (ChangesetT s w m) a s w where
+instance (RightAction w a, RightAction w s, Monoid w, Monad m) => Focus (ChangesetT a w m) (ChangesetT s w m) a s w where
   focus g ChangesetT {getChangesetT} = ChangesetT $ \s -> getChangesetT $ view g s
 
 -- TODO These instances can be reduced a bit, starting with GHC 9.6 I believe
@@ -91,7 +91,7 @@ instance (Monad m, Monad (t m), Monad n, Monad (t n), MonadTrans t, MFunctor t, 
 class (MonadChangeset s v m, MonadChangeset s w n) => Specify s m n v w where
   specify :: Prism' w v -> m x -> n x
 
-instance (Monad m, Monoid w, Monoid v, Action w s, Action v s) => Specify s (ChangesetT s v m) (ChangesetT s w m) v w where
+instance (Monad m, Monoid w, Monoid v, RightAction w s, RightAction v s) => Specify s (ChangesetT s v m) (ChangesetT s w m) v w where
   specify prism = mapChange $ review prism
 
 (<>|>) :: (MonadChangeset s (SetterChangeset s a w) m) => Setter' s a -> w -> m ()

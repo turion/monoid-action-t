@@ -65,6 +65,7 @@ common opts
 library
   import: opts
   exposed-modules:
+    Data.Monoid.RightAction
     Control.Monad.Changeset.Class
     Control.Monad.Trans.Changeset
     Control.Monad.Trans.Changeset.Examples

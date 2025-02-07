@@ -10,14 +10,14 @@ import Control.Monad.Trans.Class (MonadTrans (..))
 import Control.Monad.Morph (MFunctor (..))
 
 -- monoid-extras
-import Data.Monoid.Action
+import Data.Monoid.RightAction (RightAction)
 
 {- | Monads containing changeset state.
 
 This usually implies that the 'Control.Monad.Trans.Changeset.ChangesetT' monad transformer is part of the monad transformer stack of @m@.
 See its documentation for details.
 -}
-class (Monad m, Monoid w, Action w s) => MonadChangeset s w m | m -> s, m -> w where
+class (Monad m, Monoid w, RightAction w s) => MonadChangeset s w m | m -> s, m -> w where
   -- | Apply a changeset to the state.
   changeset ::
     -- | Receives the current state and has to output a value and a change.

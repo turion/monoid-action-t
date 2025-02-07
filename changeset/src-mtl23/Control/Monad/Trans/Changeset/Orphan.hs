@@ -21,15 +21,19 @@ import Control.Monad.Trans.Changeset
 import Control.Monad.Accum (MonadAccum (..))
 import Control.Monad.Changeset.Class (MonadChangeset (changeset))
 import Control.Monad.Select (MonadSelect (..))
+import Data.Monoid.RightAction
+import Data.Monoid (Dual (getDual, Dual))
 
-instance (MonadAccum w m, Action w' s, Monoid w') => MonadAccum w (ChangesetT s w' m) where
+instance (MonadAccum w m, RightAction w' s, Monoid w') => MonadAccum w (ChangesetT s w' m) where
   accum = lift . accum
 
-instance (MonadSelect r m, Action w s, Monoid w) => MonadSelect r (ChangesetT s w m) where
+instance (MonadSelect r m, RightAction w s, Monoid w) => MonadSelect r (ChangesetT s w m) where
   select = lift . select
 
 -- | The 'AccumT' monad transformer is a special case of 'ChangesetT' when both state and change are the same type.
-type RegularAccumT w = ChangesetT (Regular w) w
+type RegularAccumT w = ChangesetT (Regular w) (Dual w)
+-- FIXME is it right that we have Dual here? Test!
+
 
 instance {-# OVERLAPPING #-} (Monoid w, Monad m) => MonadAccum w (RegularAccumT w m) where
-  accum = changeset . (. getRegular)
+  accum = changeset . fmap (fmap Dual) . (. getRegular)

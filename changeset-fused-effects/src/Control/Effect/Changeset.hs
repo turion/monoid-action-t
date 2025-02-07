@@ -8,7 +8,6 @@ import Data.Bifunctor (first)
 import Data.Kind (Type)
 
 -- monoid-extras
-import Data.Monoid.Action
 
 -- fused-effects
 import Control.Algebra
@@ -16,12 +15,13 @@ import Control.Algebra
 -- changeset
 import Control.Monad.Changeset.Class (MonadChangeset (..))
 import Control.Monad.Trans.Changeset (ChangesetT (..))
+import Data.Monoid.RightAction (RightAction)
 
 data Changeset s w (m :: Type -> Type) k where
   Append :: w -> Changeset s w m ()
   Current :: Changeset s w m s
 
-instance (Action w s, Monoid w, Algebra sig m) => Algebra (Changeset s w :+: sig) (ChangesetT s w m) where
+instance (RightAction w s, Monoid w, Algebra sig m) => Algebra (Changeset s w :+: sig) (ChangesetT s w m) where
   alg handler sig ctx = case sig of
     L (Append w) -> ctx <$ change w
     L Current -> (<$ ctx) <$> current

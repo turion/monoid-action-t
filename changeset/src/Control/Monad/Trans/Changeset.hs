@@ -49,7 +49,7 @@ import Data.Function ((&))
 import Data.Functor ((<&>))
 import Data.Functor.Identity (Identity (runIdentity))
 import Data.Tuple (swap)
-import Data.Foldable (foldr')
+import Data.Foldable (foldl')
 
 -- containers
 import Data.Sequence (Seq, fromList, (|>))
@@ -66,7 +66,7 @@ import Control.Monad.State.Class (MonadState (..))
 import Control.Monad.Writer.Class (MonadWriter (..))
 
 -- monoid-extras
-import Data.Monoid.Action (Action, act)
+import Data.Monoid.RightAction (RightAction, actRight)
 
 -- changeset
 import Control.Monad.Changeset.Class
@@ -80,7 +80,7 @@ An @a@ is computed while performing a side effect in @m@,
 and these can depend on the current state.
 
 The type @w@ encodes /changes/ (or updates, edits, commits, diffs, patches ...) to the state @s@.
-This relation is captured by the 'Action' type class from @monoid-extras@.
+This relation is captured by the 'RightAction' type class from @monoid-extras@.
 It contains a method, @'act' :: w -> s -> s@,
 which implements the semantics of @w@ as the type of updates to @s@.
 
@@ -107,7 +107,7 @@ data ChangeAddress
   -- | Delete the address for the given key
   | Delete Text
 
-instance Action ChangeAddress User where
+instance RightAction ChangeAddress User where
   act = ...
 @
 
@@ -145,15 +145,15 @@ getChangeT :: (Functor m) => ChangesetT s w m a -> s -> m w
 getChangeT ChangesetT {getChangesetT} s = getChangesetT s <&> fst
 
 -- | Run the action with an initial state and apply all resulting changes to it.
-runChangesetT :: (Functor m, Action w s) => ChangesetT s w m a -> s -> m (a, s)
-runChangesetT ChangesetT {getChangesetT} s = getChangesetT s <&> \(w, a) -> (a, act w s)
+runChangesetT :: (Functor m, RightAction w s) => ChangesetT s w m a -> s -> m (a, s)
+runChangesetT ChangesetT {getChangesetT} s = getChangesetT s <&> \(w, a) -> (a, actRight s w)
 
 -- | Run the action with an initial state and extract only the value.
-evalChangesetT :: (Functor m, Action w s) => ChangesetT s w m a -> s -> m a
+evalChangesetT :: (Functor m, RightAction w s) => ChangesetT s w m a -> s -> m a
 evalChangesetT = fmap (fmap fst) . runChangesetT
 
 -- | Run the action with an initial state and extract only the state.
-execChangesetT :: (Functor m, Action w s) => ChangesetT s w m a -> s -> m s
+execChangesetT :: (Functor m, RightAction w s) => ChangesetT s w m a -> s -> m s
 execChangesetT = fmap (fmap snd) . runChangesetT
 
 -- * 'ChangesetT' API with relaxed constraints
@@ -179,7 +179,7 @@ The @A@ suffix means that only 'Applicative' is required, not 'Monad'.
 currentA :: (Applicative m, Monoid w) => ChangesetT s w m s
 currentA = ChangesetT $ \s -> pure (mempty, s)
 
-instance (Action w s, Monoid w, Monad m) => MonadChangeset s w (ChangesetT s w m) where
+instance (RightAction w s, Monoid w, Monad m) => MonadChangeset s w (ChangesetT s w m) where
   change = changeA
   current = currentA
   changeset = changesetA
@@ -188,7 +188,7 @@ instance (Action w s, Monoid w, Monad m) => MonadChangeset s w (ChangesetT s w m
 liftF :: (Functor m, Monoid w) => m a -> ChangesetT s w m a
 liftF = ChangesetT . const . fmap (mempty,)
 
-instance (Action w s, Monoid w) => MonadTrans (ChangesetT s w) where
+instance (RightAction w s, Monoid w) => MonadTrans (ChangesetT s w) where
   lift = liftF
 
 -- ** Transforming 'ChangesetT' operations
@@ -223,27 +223,27 @@ This only needs an 'Applicative' constraint on @m@, not 'Monad'.
 ChangesetT mf |*> ChangesetT ma = ChangesetT $ \s -> (\(w1, f) (w2, a) -> (w1 <> w2, f a)) <$> mf s <*> ma s
 
 -- | The @'Monad' m@ constraint is indeed necessary, since we need the log from the first action to change it to the state for the second action.
-instance (Monoid w, Action w s, Monad m) => Applicative (ChangesetT s w m) where
+instance (Monoid w, RightAction w s, Monad m) => Applicative (ChangesetT s w m) where
   pure a = ChangesetT $ const $ pure (mempty, a)
 
   ChangesetT mf <*> ChangesetT ma = ChangesetT $ \s -> do
     (w1, f) <- mf s
-    let !s' = act w1 s
+    let !s' = actRight s w1
     (w2, a) <- ma s'
     pure (w1 <> w2, f a)
 
-instance (Action w s, Monoid w, Monad m) => Monad (ChangesetT s w m) where
+instance (RightAction w s, Monoid w, Monad m) => Monad (ChangesetT s w m) where
   ChangesetT ma >>= f = ChangesetT $ \s -> do
     (w1, a) <- ma s
-    let !s' = act w1 s
+    let !s' = actRight s w1
     (w2, b) <- getChangesetT (f a) s'
     return (w1 <> w2, b)
 
-instance (Alternative m, Monoid w, Action w s, Monad m) => Alternative (ChangesetT s w m) where
+instance (Alternative m, Monoid w, RightAction w s, Monad m) => Alternative (ChangesetT s w m) where
   empty = liftF empty
   ChangesetT ma1 <|> ChangesetT ma2 = ChangesetT $ \s -> ma1 s <|> ma2 s
 
-instance (Alternative m, Monoid w, Action w s, Monad m) => MonadPlus (ChangesetT s w m)
+instance (Alternative m, Monoid w, RightAction w s, Monad m) => MonadPlus (ChangesetT s w m)
 
 instance MFunctor (ChangesetT s w) where
   hoist = hoistF
@@ -252,7 +252,7 @@ instance MFunctor (ChangesetT s w) where
 hoistF :: (forall x. m x -> n x) -> ChangesetT s w m a -> ChangesetT s w n a
 hoistF morph ma = ChangesetT $ morph . getChangesetT ma
 
-instance (Action w s, Monoid w) => MMonad (ChangesetT s w) where
+instance (RightAction w s, Monoid w) => MMonad (ChangesetT s w) where
   embed f (ChangesetT g) = ChangesetT $ \s ->
     s
       & g
@@ -260,20 +260,20 @@ instance (Action w s, Monoid w) => MMonad (ChangesetT s w) where
       & flip getChangesetT s
       <&> \(w1, (w2, b)) -> (w1 <> w2, b)
 
-instance (MonadError e m, Action w s, Monoid w) => MonadError e (ChangesetT s w m) where
+instance (MonadError e m, RightAction w s, Monoid w) => MonadError e (ChangesetT s w m) where
   throwError = lift . throwError
   catchError ma handler = ChangesetT $ \s -> getChangesetT ma s `catchError` (\e -> getChangesetT (handler e) s)
 
-instance (MonadReader r m, Action w s, Monoid w) => MonadReader r (ChangesetT s w m) where
+instance (MonadReader r m, RightAction w s, Monoid w) => MonadReader r (ChangesetT s w m) where
   ask = lift ask
   local f = hoist $ local f
 
-instance (MonadRWS r w s m, Action w' s', Monoid w') => MonadRWS r w s (ChangesetT s' w' m)
+instance (MonadRWS r w s m, RightAction w' s', Monoid w') => MonadRWS r w s (ChangesetT s' w' m)
 
-instance (MonadState s m, Action w' s', Monoid w') => MonadState s (ChangesetT s' w' m) where
+instance (MonadState s m, RightAction w' s', Monoid w') => MonadState s (ChangesetT s' w' m) where
   state = lift . state
 
-instance (MonadWriter w m, Action w' s, Monoid w') => MonadWriter w (ChangesetT s w' m) where
+instance (MonadWriter w m, RightAction w' s, Monoid w') => MonadWriter w (ChangesetT s w' m) where
   writer = lift . writer
   listen = ChangesetT . fmap (fmap (\((w', a), w) -> (w', (a, w))) . listen) . getChangesetT
   pass = ChangesetT . fmap (pass . fmap (\(w', (a, f)) -> ((w', a), f))) . getChangesetT
@@ -296,15 +296,15 @@ getChange :: Changeset s w a -> s -> w
 getChange swa s = runIdentity $ getChangeT swa s
 
 -- | Like 'runChangesetT'.
-runChangeset :: (Action w s) => Changeset s w a -> s -> (a, s)
+runChangeset :: (RightAction w s) => Changeset s w a -> s -> (a, s)
 runChangeset swa s = runIdentity $ runChangesetT swa s
 
 -- | Like 'evalChangesetT'.
-evalChangeset :: (Action w s) => Changeset s w a -> s -> a
+evalChangeset :: (RightAction w s) => Changeset s w a -> s -> a
 evalChangeset swa s = runIdentity $ evalChangesetT swa s
 
 -- | Like 'execChangesetT'.
-execChangeset :: (Action w s) => Changeset s w a -> s -> s
+execChangeset :: (RightAction w s) => Changeset s w a -> s -> s
 execChangeset swa s = runIdentity $ execChangesetT swa s
 
 -- * 'Changes': container for changes that don't have a 'Monoid' instance
@@ -329,5 +329,5 @@ singleChange = Changes . pure
 changeSingle :: (MonadChangeset s (Changes w) m) => w -> m ()
 changeSingle = change . singleChange
 
-instance (Action w s) => Action (Changes w) s where
-  act Changes {getChanges} s = foldr' act s getChanges
+instance (RightAction w s) => RightAction (Changes w) s where
+  actRight s Changes {getChanges} = foldl' actRight s getChanges
