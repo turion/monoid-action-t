@@ -9,7 +9,7 @@ import Control.Monad.Trans.Class (MonadTrans (..))
 -- mmorph
 import Control.Monad.Morph (MFunctor (..))
 
--- monoid-extras
+-- changeset
 import Data.Monoid.RightAction (RightAction)
 
 {- | Monads containing changeset state.

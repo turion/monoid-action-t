@@ -3,7 +3,7 @@ module Main (main) where
 -- base
 
 import Data.Char (toLower, toUpper)
-import Data.Monoid (Endo (..), Last (..), Dual (..), Last (Last))
+import Data.Monoid (Dual (..), Endo (..), Last (..))
 import Prelude hiding (Foldable (..))
 
 -- lens
@@ -19,13 +19,12 @@ import Test.Tasty.HUnit (testCase, (@?=))
 -- import Test.Tasty.Falsify
 
 -- monoid-extras
-import Data.Monoid.RightAction (RightAction (..), (:+:), inL, inR, normaliseCoproduct)
+import Data.Monoid.RightAction (RightAction (..), inL, inR, normaliseCoproduct, (:+:))
 
 -- containers
 import Data.IntMap (singleton)
 import qualified Data.IntMap as IM
 import qualified Data.Map as M
-
 
 -- changeset
 import Control.Monad.Changeset.Class
@@ -94,10 +93,10 @@ main =
                in do
                     -- TODO monoid-extras doesn't export constructor nor define Eq instance
                     -- (https://github.com/diagrams/monoid-extras/issues/59)
-                    normaliseCoproduct (getChange action IM.empty) @?= [
-                        Left $ singleChange $ Insert 0 True
-                        , Right $ ixedChangeset 0 $ Last $ Just False
-                        ]
+                    normaliseCoproduct (getChange action IM.empty)
+                      @?= [ Left $ singleChange $ Insert 0 True
+                          , Right $ ixedChangeset 0 $ Last $ Just False
+                          ]
                     -- normaliseCoproduct (getChange action IM.empty) @?= [Left (Changes {getChanges = fromList [Insert 0 True]}),Right (IxedChangeset {getIxedChangeset = MonoidalMap {getMonoidalMap = fromList [(0,Last {getLast = Just False})]}})]
                     execChangeset action mempty @?= IM.singleton 0 False
           , testCase ":+: is monoid morphism" $

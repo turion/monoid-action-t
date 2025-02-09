@@ -5,15 +5,15 @@
 'ChangesetT' is a very general state monad transformer.
 It has all the standard state monads from @transformers@ as special cases:
 
-+--------------------------+-------------+-------------+---------------------------------------------+
-| Transformer special case | State type  | Monoid type | Intuition                                   |
-+==========================+=============+=============+=============================================+
-| @'WriterT' w@            | '()'        | @w@         | No possibility to observe the current state |
-+--------------------------+-------------+-------------+---------------------------------------------+
-| @'AccumT' w@             | 'Regular w' | @w@         | The state is the same type as the changes   |
-+--------------------------+-------------+-------------+---------------------------------------------+
-| @'StateT' s@             | @s@         | @First s@   | The change overwrites all previous changes  |
-+--------------------------+-------------+-------------+---------------------------------------------+
++--------------------------+---------------+-------------+---------------------------------------------+
+| Transformer special case | State type    | Monoid type | Intuition                                   |
++==========================+===============+=============+=============================================+
+| @'WriterT' w@            | '()'          | @w@         | No possibility to observe the current state |
++--------------------------+---------------+-------------+---------------------------------------------+
+| @'AccumT' w@             | @'Regular' w@ | @w@         | The state is the same type as the changes   |
++--------------------------+---------------+-------------+---------------------------------------------+
+| @'StateT' s@             | @s@           | @First s@   | The change overwrites all previous changes  |
++--------------------------+---------------+-------------+---------------------------------------------+
 
 But there are very useful state change applications not covered by these.
 
@@ -45,11 +45,11 @@ module Control.Monad.Trans.Changeset where
 import Control.Applicative (Alternative (..))
 import Control.Monad (MonadPlus)
 import Data.Bifunctor (Bifunctor (..))
+import Data.Foldable (foldl')
 import Data.Function ((&))
 import Data.Functor ((<&>))
 import Data.Functor.Identity (Identity (runIdentity))
 import Data.Tuple (swap)
-import Data.Foldable (foldl')
 
 -- containers
 import Data.Sequence (Seq, fromList, (|>))
@@ -65,11 +65,11 @@ import Control.Monad.Reader.Class (MonadReader (..))
 import Control.Monad.State.Class (MonadState (..))
 import Control.Monad.Writer.Class (MonadWriter (..))
 
--- monoid-extras
-import Data.Monoid.RightAction (RightAction, actRight)
-
 -- changeset
+
 import Control.Monad.Changeset.Class
+import Data.Monoid.RightAction (RightAction, actRight)
+import Witherable (Filterable (mapMaybe), Witherable (wither))
 
 -- * The 'ChangesetT' monad transformer
 
@@ -309,25 +309,64 @@ execChangeset swa s = runIdentity $ execChangesetT swa s
 
 -- * 'Changes': container for changes that don't have a 'Monoid' instance
 
--- FIXME delete containers dep again?
+{- | A collection of individual changes.
 
--- | Collect changes
+This serves as a container for changes that don't have a 'Monoid' or 'Semigroup' instance.
+All changes are applied sequentially.
+
+To inspect or edit 'Changes', see the type classes 'Functor', 'Foldable', 'Traversable', 'Filterable' and 'Witherable'.
+-}
 newtype Changes w = Changes {getChanges :: Seq w}
   deriving (Show, Read, Eq, Ord)
   deriving newtype (Semigroup, Monoid, Foldable, Functor)
+  deriving (Traversable)
 
+instance Filterable Changes where
+  mapMaybe f = Changes . mapMaybe f . getChanges
+
+instance Witherable Changes where
+  wither f = fmap Changes . wither f . getChanges
+
+-- | Create 'Changes' from a list of changes.
 changes :: [w] -> Changes w
 changes = Changes . fromList
 
+{- | Append a single change.
+
+When @'addChange' w cs@ acts on a state with 'actRight', @w@ will be applied last.
+-}
 addChange :: w -> Changes w -> Changes w
 addChange w = Changes . (|> w) . getChanges
 
--- FIXME operator? shorthand?
+-- | Create a 'Changes' from a single change.
 singleChange :: w -> Changes w
 singleChange = Changes . pure
 
+-- | Apply a single change.
 changeSingle :: (MonadChangeset s (Changes w) m) => w -> m ()
 changeSingle = change . singleChange
 
+-- | Apply all changes sequentially
 instance (RightAction w s) => RightAction (Changes w) s where
   actRight s Changes {getChanges} = foldl' actRight s getChanges
+
+-- * Action examples
+
+-- | A list can be changed by prepending an element, or removing one
+data ListChange a
+  = -- | Prepend an element
+    Cons a
+  | -- | Remove the first element (noop on an empty list)
+    Pop
+  deriving (Eq, Show)
+
+instance RightAction (ListChange a) [a] where
+  actRight as (Cons a) = a : as
+  actRight as Pop = drop 1 as
+
+-- | An integer can be incremented by 1.
+data Count = Increment
+  deriving (Eq, Show)
+
+instance RightAction Count Int where
+  actRight count Increment = count + 1

@@ -3,8 +3,11 @@
 module Control.Monad.Trans.Changeset.Examples where
 
 -- base
+import Control.Monad (guard)
 import Data.Bifunctor (Bifunctor (first))
-import Data.Monoid (Endo (..), Last, Dual (..))
+import Data.Functor (($>))
+import Data.Functor.Identity (Identity)
+import Data.Monoid (Dual (..), Endo (..), Last)
 import Data.Tuple (swap)
 
 -- monoid-extras
@@ -12,13 +15,21 @@ import Data.Monoid.Action
 
 -- mtl
 import Control.Monad.Reader (MonadReader (..))
-import Control.Monad.State (MonadState (..))
-import Control.Monad.Writer (MonadWriter (..))
+import Control.Monad.State (MonadState (..), modify, runState)
+import Control.Monad.Writer (MonadWriter (..), runWriter)
+
+-- witherable
+import Witherable (mapMaybe)
 
 -- changeset
 import Control.Monad.Changeset.Class (MonadChangeset (..))
 import Control.Monad.Trans.Changeset
-import Test.Tasty (testGroup, TestTree)
+
+-- tasty
+import Test.Tasty (TestTree, testGroup)
+
+-- tasty-hunit
+import Test.Tasty.HUnit (testCase, (@?=))
 
 -- * 'ReaderT'
 
@@ -59,23 +70,44 @@ instance {-# OVERLAPPING #-} (Monad m) => MonadState s (LastWriteT s m) where
 {- | Endomorphism state monad.
 
 There is a further, not so much studied state monad by choosing any state type @s@ and the @Endo s@ monoid.
-It behaves a lot like @'State' s@ with one subtle difference:
-When combining two computations, the modifications are both applied,
-but they will both read from the initial state.
-So for example, @modify (+ 1) >> modify (+ 1) = modify (+ 2)@,
-but if we define @inc = get >>= (\n -> put n + 1)@, we have @inc >> inc = inc@.
-This is because all the calls to 'get' receive the same initial state, and 'put' unconditionally writes the state.
-In other words, 'modify' (or 'state' for that matter) is more powerful than 'get' and 'put' combined.
 -}
 type EndoStateT s = ChangesetT s (Dual (Endo s))
-
--- FIXME is it right that we use Dual here? Test!
 
 instance {-# OVERLAPPING #-} (Monad m) => MonadState s (EndoStateT s m) where
   state f = ChangesetT $ \s -> return (Dual $ Endo $ snd <$> f, fst $ f s)
 
+type M = Changes (ListChange Int)
+
+writerExample :: (MonadWriter M m) => m ((), M)
+writerExample = listen $ pass $ do
+  tell $ singleChange $ Cons 0
+  tell $ singleChange $ Cons 23
+  tell $ singleChange $ Cons 99
+  tell $ singleChange Pop
+  pure ((), mapMaybe $ \c -> guard (c /= Cons 23) $> c)
+
+stateExample :: (MonadState Int m) => m Int
+stateExample = do
+  put 0
+  put 1
+  n <- get
+  put 2
+  put 3
+  return n
 
 tests :: TestTree
-tests = testGroup "Examples" [
-
-  ]
+tests =
+  testGroup
+    "Examples"
+    [ testCase "Writer" $ runWriter writerExample @?= swap (getChangeset (writerExample :: TrivialActionWriterT M Identity ((), M)) mempty)
+    , testCase "State" $ runState stateExample 99 @?= runChangeset (stateExample :: LastWriteT Int Identity Int) 99
+    , testGroup
+        "EndoStateT"
+        [ testCase "modify" $ execChangeset (modify (+ 1) >> modify (+ 1) :: EndoStateT Int Identity ()) 0 @?= execChangeset (modify (+ 2) :: EndoStateT Int Identity ()) 0
+        , testCase "get & put" $
+            let inc = do
+                  n <- get
+                  put $ n + 1
+             in execChangeset (inc >> inc :: EndoStateT Int Identity ()) 0 @?= 2
+        ]
+    ]

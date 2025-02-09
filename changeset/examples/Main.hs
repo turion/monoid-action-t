@@ -19,8 +19,9 @@ import Test.Tasty
 import Data.Monoid.RightAction
 
 -- changeset-examples
-import Control.Monad.Trans.Changeset.Examples as Examples
+
 import Control.Monad.Trans.Changeset.AccumExample as AccumExample
+import Control.Monad.Trans.Changeset.Examples as Examples
 
 -- type M = Changeset Int (Changes Count)
 
@@ -29,7 +30,6 @@ main =
   defaultMain $
     testGroup
       "examples"
-      [
-        Examples.tests
-      ,  AccumExample.tests
+      [ Examples.tests
+      , AccumExample.tests
       ]

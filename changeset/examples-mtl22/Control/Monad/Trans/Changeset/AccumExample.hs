@@ -1,7 +1,7 @@
 module Control.Monad.Trans.Changeset.AccumExample where
 
 -- tasty
-import Test.Tasty (testGroup, TestTree)
+import Test.Tasty (TestTree, testGroup)
 
 tests :: TestTree
 tests = testGroup "Accum" []
