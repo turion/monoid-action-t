@@ -18,22 +18,18 @@ import Test.Tasty
 -- import Control.Monad.Trans.Changeset
 import Data.Monoid.RightAction
 
+-- changeset-examples
+import Control.Monad.Trans.Changeset.Examples as Examples
+import Control.Monad.Trans.Changeset.AccumExample as AccumExample
+
 -- type M = Changeset Int (Changes Count)
-
-data Count = Increment
-
-instance RightAction Count Int where
-  actRight count Increment = count + 1
 
 main :: IO ()
 main =
   defaultMain $
     testGroup
       "examples"
-      []
-
-data ListChange a = Cons a | Pop
-
-instance RightAction (ListChange a) [a] where
-  actRight as (Cons a) = a : as
-  actRight as Pop = drop 1 as
+      [
+        Examples.tests
+      ,  AccumExample.tests
+      ]
