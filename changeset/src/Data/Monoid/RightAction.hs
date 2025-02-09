@@ -1,11 +1,12 @@
 module Data.Monoid.RightAction where
-import Data.Monoid (Last (..), Dual (..))
+
+import Data.Foldable (Foldable (foldl'), toList)
 import Data.Maybe (fromMaybe)
-import Data.Void (Void)
+import Data.Monoid (Dual (..), Last (..))
 import Data.Monoid.Action (Action (..), Regular (Regular))
-import Data.Typeable (Typeable)
-import Data.Foldable (Foldable(foldl'), toList)
 import Data.Sequence (Seq)
+import Data.Typeable (Typeable)
+import Data.Void (Void)
 
 {- | A right action (https://en.wikipedia.org/wiki/Group_action#Right_group_action) of @m@ on @s@.
 
@@ -35,13 +36,13 @@ instance RightAction Void s
 instance RightAction (Last s) s where
   actRight s (Last ms) = fromMaybe s ms
 
-instance Action m s => RightAction (Dual m) s where
+instance (Action m s) => RightAction (Dual m) s where
   actRight s (Dual m) = act m s
 
-instance Semigroup m => RightAction m (Regular m) where
+instance (Semigroup m) => RightAction m (Regular m) where
   actRight (Regular m1) m2 = Regular $ m1 <> m2
 
-instance RightAction m s => RightAction (Maybe m) s where
+instance (RightAction m s) => RightAction (Maybe m) s where
   actRight s = maybe s (actRight s)
 
 {- | The coproduct of two monoids is a monoid that can contain values of either constituent.
@@ -69,7 +70,6 @@ Semantically, this is a monoid homomorphism: @inR m1 <> inR m2@ acts the same as
 -}
 inR :: n -> m :+: n
 inR = Coproduct . pure . Right
-
 
 {- | Brings a coproduct into a canonical form, which is an alternating list of 'Left's and 'Right's.
 

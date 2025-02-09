@@ -20,8 +20,8 @@ import Control.Monad (replicateM_)
 import Control.Monad.Changeset.Class
 import Control.Monad.Trans.Changeset
 import Control.Monad.Trans.Reader (ReaderT (..), ask)
-import Data.Monoid.RightAction (RightAction (..))
 import Data.Function ((&))
+import Data.Monoid.RightAction (RightAction (..))
 
 type M = Changeset Int (Changes Count)
 
