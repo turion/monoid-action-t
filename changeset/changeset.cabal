@@ -6,9 +6,11 @@ name: changeset
 version: 0.1.0.0
 synopsis: Stateful monad transformer based on monoidal actions
 description:
-  A general state monad transformer with separate types for the state and the possible updates.
+  A general state monad transformer with separate types for the state and the possible changes.
   It can be defined for any monoid action.
-  The monoid represents "updates", "edits" or "diffs" on the state.
+  The monoid represents "changes", "updates", "edits" or "diffs" on the state.
+  The @changeset@ ecosystem has support for standard @containers@ and optics from @lens@
+  by providing the packages @changeset-containers@ and @changeset-lens@.
 
 license: MIT
 license-file: LICENSE
@@ -61,6 +63,7 @@ common opts
     NamedFieldPuns
     RankNTypes
     ScopedTypeVariables
+    StandaloneDeriving
     TupleSections
     TypeOperators
 
@@ -68,6 +71,7 @@ library
   import: opts
   exposed-modules:
     Data.Monoid.RightAction
+    Data.Monoid.RightAction.Coproduct
     Control.Monad.Changeset.Class
     Control.Monad.Trans.Changeset
 

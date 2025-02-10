@@ -1,7 +1,12 @@
 module Main (main) where
 
 -- base
+import Control.Monad (replicateM_)
+import Data.Function ((&))
 import Prelude hiding (Foldable (..))
+
+-- transformers
+import Control.Monad.Trans.Reader (ReaderT (..), ask)
 
 -- tasty
 import Test.Tasty
@@ -9,26 +14,14 @@ import Test.Tasty
 -- tasty-hunit
 import Test.Tasty.HUnit (testCase, (@?=))
 
--- falsify
--- import Test.Tasty.Falsify
-
--- monoid-extras
-
 -- changeset
-
-import Control.Monad (replicateM_)
 import Control.Monad.Changeset.Class
 import Control.Monad.Trans.Changeset
-import Control.Monad.Trans.Reader (ReaderT (..), ask)
-import Data.Function ((&))
 import Data.Monoid.RightAction (RightAction (..))
+import Data.Monoid (Last (Last))
+import Data.Monoid.RightAction.Coproduct ((:+:), inL)
 
 type M = Changeset Int (Changes Count)
-
-data Count = Increment
-
-instance RightAction Count Int where
-  actRight count Increment = count + 1
 
 main :: IO ()
 main =
@@ -73,7 +66,7 @@ main =
       , testGroup
           "Changes"
           [ testCase "is lawful monoid action" $ do
-              actRight (actRight [] (singleChange (Cons True))) (singleChange (Cons False)) @?= actRight ([] :: [Bool]) (singleChange (Cons True) <> singleChange (Cons False))
+              [] `actRight` singleChange (Cons True) `actRight` singleChange (Cons False) @?= ([] :: [Bool]) `actRight` singleChange (Cons True) <> singleChange (Cons False)
           ]
       , testGroup
           "MonadChangeset"
@@ -83,10 +76,9 @@ main =
                     replicateM_ env $ changeSingle Increment
                in action @?= 100
           ]
+      , testGroup "Coproduct" [
+                testCase ":+: is monoid morphism" $
+            (0 :: Int) `actRight` (inL (Last (Just 1)) <> inL (Last (Just 2)) :: Last Int :+: Last Int) @?= 0 `actRight` (inL (Last (Just (1 :: Int)) <> Last (Just 2)) :: Last Int :+: Last Int)
+
       ]
-
-data ListChange a = Cons a | Pop
-
-instance RightAction (ListChange a) [a] where
-  actRight s (Cons a) = a : s
-  actRight s Pop = drop 1 s
+      ]

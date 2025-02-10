@@ -1,12 +1,12 @@
 module Data.Monoid.RightAction where
 
-import Data.Foldable (Foldable (foldl'), toList)
+-- base
 import Data.Maybe (fromMaybe)
-import Data.Monoid (Dual (..), Last (..))
-import Data.Monoid.Action (Action (..), Regular (Regular))
-import Data.Sequence (Seq)
-import Data.Typeable (Typeable)
+import Data.Monoid (Dual (..), Endo (..), Last (..))
 import Data.Void (Void)
+
+-- monoid-extras
+import Data.Monoid.Action (Action (..), Regular (Regular))
 
 {- | A right action (https://en.wikipedia.org/wiki/Group_action#Right_group_action) of @m@ on @s@.
 
@@ -25,7 +25,7 @@ class RightAction m s where
   actRight :: s -> m -> s
   actRight s _ = s
 
--- FIXME Add right fixity declaration
+infixl 5 `actRight`
 
 instance RightAction () s
 
@@ -45,49 +45,17 @@ instance (Semigroup m) => RightAction m (Regular m) where
 instance (RightAction m s) => RightAction (Maybe m) s where
   actRight s = maybe s (actRight s)
 
--- FIXME more instances
+{- | Endomorphism type with reverse 'Monoid' instance.
 
--- FIXME separate module
-{- | The coproduct of two monoids is a monoid that can contain values of either constituent.
+The standard 'Endo' type has a left action on @s@ since its composition is defined as @Endo f <> Endo g = Endo (f . g)@.
+The "Right Endomorphism" type, on the other hand, has a right action.
+Intuitively, it behaves like the '&' operator:
 
-This is useful if you have two different actions on the same state type,
-and want to combine them.
-
-Note: The multiplication of this monoid is formal, so the same semantic values may have differing representations.
-Therefore it's not advised to inspect the contents of a coproduct.
-You should usually want to use 'normaliseCoproduct'.
+@
+s & f & g == s `actRight` rEndo f <> rEndo g
 -}
-newtype (:+:) m n = Coproduct {getCoproduct :: Seq (Either m n)}
-  deriving (Typeable, Semigroup, Monoid)
+type REndo s = Dual (Endo s)
 
-{- | Construct a coproduct value from the left constituent monoid.
-
-Semantically, this is a monoid homomorphism: @inL m1 <> inL m2@ acts the same as @inL (m1 <> m2)@.
--}
-inL :: m -> m :+: n
-inL = Coproduct . pure . Left
-
-{- | Construct a coproduct value from the right constituent monoid.
-
-Semantically, this is a monoid homomorphism: @inR m1 <> inR m2@ acts the same as @inR (m1 <> m2)@.
--}
-inR :: n -> m :+: n
-inR = Coproduct . pure . Right
-
-{- | Brings a coproduct into a canonical form, which is an alternating list of 'Left's and 'Right's.
-
-(The list may start with a 'Left' or a 'Right', or be empty.)
--}
-normaliseCoproduct :: (Semigroup m, Semigroup n) => m :+: n -> [Either m n]
-normaliseCoproduct = normaliseCoproduct' . toList . getCoproduct
-  where
-    normaliseCoproduct' (Left m1 : Left m2 : emns) = normaliseCoproduct' $ Left (m1 <> m2) : emns
-    normaliseCoproduct' (Right n1 : Right n2 : emns) = normaliseCoproduct' $ Right (n1 <> n2) : emns
-    normaliseCoproduct' [] = []
-    normaliseCoproduct' (emn : emns) = emn : normaliseCoproduct' emns
-
-instance (Eq m, Eq n, Semigroup m, Semigroup n) => Eq (m :+: n) where
-  mns1 == mns2 = normaliseCoproduct mns1 == normaliseCoproduct mns2
-
-instance (RightAction m s, RightAction n s) => RightAction (m :+: n) s where
-  actRight s mns = foldl' (flip $ either (flip actRight) (flip actRight)) s (getCoproduct mns)
+-- | Create an endomorphism monoid that has a right action on @s@.
+rEndo :: (s -> s) -> REndo s
+rEndo = Dual . Endo

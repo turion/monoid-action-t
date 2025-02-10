@@ -20,12 +20,12 @@ import Data.Monoid.Action (Regular (Regular, getRegular))
 import Control.Monad.Trans.Changeset
 
 -- tasty
-import Test.Tasty (TestTree, testGroup)
+import Test.Tasty (TestTree)
 
 -- tasty-hunit
 import Test.Tasty.HUnit (testCase, (@?=))
 
--- \| The 'AccumT' monad transformer is a special case of 'ChangesetT' when both state and change are the same type.
+-- | The 'AccumT' monad transformer is a special case of 'ChangesetT' when both state and change are the same type.
 type RegularAccumT w = ChangesetT (Regular w) w
 
 instance {-# OVERLAPPING #-} (Monoid w, Monad m) => MonadAccum w (RegularAccumT w m) where

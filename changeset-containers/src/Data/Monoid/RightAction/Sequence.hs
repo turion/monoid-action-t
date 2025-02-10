@@ -3,11 +3,19 @@ module Data.Monoid.RightAction.Sequence where
 import Data.Monoid.RightAction (RightAction (..))
 import Data.Sequence
 
+{- | Insert or delete an element at either end of a 'Seq'.
+
+To change an element in a 'Seq', see the indexed changes in @changeset-lens@.
+-}
 data SeqChange a
-  = Cons a
-  | Snoc a
-  | Uncons
-  | Unsnoc
+  = -- | Prepend an element
+    Cons a
+  | -- | Append an element
+    Snoc a
+  | -- | Drop an element from the left
+    Uncons
+  | -- | Drop an element from the right
+    Unsnoc
   deriving (Show, Read, Eq, Ord, Functor)
 
 instance RightAction (SeqChange a) (Seq a) where

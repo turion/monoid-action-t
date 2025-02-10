@@ -2,21 +2,6 @@
 
 {- | A general state monad transformer with separate types for the state and the possible changes, updates, commits, or diffs.
 
-'ChangesetT' is a very general state monad transformer.
-It has all the standard state monads from @transformers@ as special cases:
-
-+--------------------------+---------------+-------------+---------------------------------------------+
-| Transformer special case | State type    | Monoid type | Intuition                                   |
-+==========================+===============+=============+=============================================+
-| @'WriterT' w@            | '()'          | @w@         | No possibility to observe the current state |
-+--------------------------+---------------+-------------+---------------------------------------------+
-| @'AccumT' w@             | @'Regular' w@ | @w@         | The state is the same type as the changes   |
-+--------------------------+---------------+-------------+---------------------------------------------+
-| @'StateT' s@             | @s@           | @First s@   | The change overwrites all previous changes  |
-+--------------------------+---------------+-------------+---------------------------------------------+
-
-But there are very useful state change applications not covered by these.
-
 A typical example is a large state type (e.g., a user entry in a database of a webshop)
 which only allows small changes (e.g., adding or deleting a delivery address).
 When we want to be able to /restrict/ to specific changes (e.g., only the addresses should be changed),
@@ -34,7 +19,23 @@ data ChangeAddress
   | Delete Text
 @
 
-Changes for such a type (or rather, for the monoid @[ChangeAddress]@) can be inspected.
+Changes for such a type (or rather, for the monoid @'Changes' ChangeAddress@) can be inspected.
+
+'ChangesetT' is a very general state monad transformer.
+It has all the standard state monads from @transformers@ as special cases:
+
++--------------------------+---------------+-------------+---------------------------------------------+
+| Transformer special case | State type    | Monoid type | Intuition                                   |
++==========================+===============+=============+=============================================+
+| @'WriterT' w@            | '()'          | @w@         | No possibility to observe the current state |
++--------------------------+---------------+-------------+---------------------------------------------+
+| @'AccumT' w@             | @'Regular' w@ | @w@         | The state is the same type as the changes   |
++--------------------------+---------------+-------------+---------------------------------------------+
+| @'StateT' s@             | @s@           | @First s@   | The change overwrites all previous changes  |
++--------------------------+---------------+-------------+---------------------------------------------+
+
+The @changeset@ ecosystem has support for standard @containers@ and optics from @lens@
+by providing the packages @changeset-containers@ and @changeset-lens@.
 
 Orphan instances for newer (2.3) @mtl@ classes such as 'Control.Monad.Accum.MonadAccum' and 'Control.Monad.Selet.MonadSelect' can be found in "Control.Monad.Trans.Changeset.Orphan".
 These are only provided for GHC >= 9.6.
@@ -65,11 +66,14 @@ import Control.Monad.Reader.Class (MonadReader (..))
 import Control.Monad.State.Class (MonadState (..))
 import Control.Monad.Writer.Class (MonadWriter (..))
 
--- changeset
-
-import Control.Monad.Changeset.Class
-import Data.Monoid.RightAction (RightAction, actRight)
+-- witherable
 import Witherable (Filterable (mapMaybe), Witherable (wither))
+
+-- changeset
+import Control.Monad.Changeset.Class
+import Data.Kind (Type)
+import Data.Monoid (Last (..))
+import Data.Monoid.RightAction (RightAction, actRight)
 
 -- * The 'ChangesetT' monad transformer
 
@@ -350,9 +354,12 @@ changeSingle = change . singleChange
 instance (RightAction w s) => RightAction (Changes w) s where
   actRight s Changes {getChanges} = foldl' actRight s getChanges
 
--- * Action examples
+-- * Change examples
 
--- | A list can be changed by prepending an element, or removing one
+{- | A list can be changed by prepending an element, or removing one.
+
+To change an element of a list, see the indexed changes from @changeset-lens@.
+-}
 data ListChange a
   = -- | Prepend an element
     Cons a
@@ -370,3 +377,36 @@ data Count = Increment
 
 instance RightAction Count Int where
   actRight count Increment = count + 1
+
+-- | Change a 'Maybe' by either deleting the value or forcing it to be present.
+newtype MaybeChange a = MaybeChange {getMaybeChange :: Last (Maybe a)}
+  deriving newtype (Eq, Ord, Show, Read, Semigroup, Monoid)
+
+instance RightAction (MaybeChange a) (Maybe a) where
+  actRight aMaybe MaybeChange {getMaybeChange} = actRight aMaybe getMaybeChange
+
+-- | Set the state to the given 'Maybe' value.
+setMaybe :: Maybe a -> MaybeChange a
+setMaybe = MaybeChange . Last . Just
+
+-- | Set the state to 'Just'.
+setJust :: a -> MaybeChange a
+setJust = setMaybe . Just
+
+-- | Set the state to 'Nothing'.
+setNothing :: MaybeChange a
+setNothing = setMaybe Nothing
+
+-- | Change a 'Functor' structure by applying a change for every element through 'fmap'.
+newtype FmapChange (f :: Type -> Type) w = FmapChange {getFmapChange :: w}
+  deriving (Eq, Ord, Read, Show, Semigroup, Monoid, Functor)
+
+instance (Functor f, RightAction w s) => RightAction (FmapChange f w) (f s) where
+  actRight fs FmapChange {getFmapChange} = flip actRight getFmapChange <$> fs
+
+-- | Apply changes only to 'Just' values.
+type JustChange = FmapChange Maybe
+
+-- | Apply changes only to 'Just' values.
+justChange :: w -> JustChange w
+justChange = FmapChange

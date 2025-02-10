@@ -6,9 +6,10 @@ name: changeset-fused-effects
 version: 0.1.0.0
 synopsis: Stateful monad transformer based on monoidal actions
 description:
-  A general state monad transformer with separate types for the state and the possible updates.
+  A general state monad transformer with separate types for the state and the possible changes.
   It can be defined for any monoid action.
-  The monoid represents "updates", "edits" or "diffs" on the state.
+  The monoid represents "changes", "updates", "edits" or "diffs" on the state.
+  This package exposes the corresponding effect signature for usage in @fused-effects@.
 
 license: MIT
 license-file: LICENSE
@@ -73,6 +74,7 @@ test-suite changeset-fused-effects-test
     base,
     changeset,
     changeset-fused-effects,
+    fused-effects,
     falsify ^>=0.2,
     monoid-extras,
     tasty ^>=1.4.2,

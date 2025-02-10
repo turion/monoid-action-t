@@ -9,22 +9,34 @@ import Test.Tasty
 
 -- tasty-hunit
 
--- falsify
--- import Test.Tasty.Falsify
-
 -- monoid-extras
 import Data.Monoid.Action (Action (..))
+import Control.Effect.Changeset (sendChange, sendCurrent, Changeset)
+import Control.Monad.Trans.Changeset (Count(Increment), getChangeset, singleChange)
+import Control.Monad.Changeset.Class (MonadChangeset(..))
+import Test.Tasty.HUnit (testCase, (@?=))
 
 -- changeset
 
-data Count = Increment
 
-instance Action [Count] Int where
-  act counts n = foldl' (\n' Increment -> n' + 1) n counts
+fusedEffects :: Has (Changeset Int (Changes Counter)) sig m => m Int
+fusedEffects = do
+  sendChange $ singleChange Increment
+  n <- sendCurrent
+  sendChange  $ singleChange Increment
+  return n
+
+transformer :: MonadChangeset Int (Changes Counter) m => m Int
+transformer = do
+  change $ singleChange Increment
+  n <- current
+  change $ singleChange Increment
+  return n
 
 main :: IO ()
 main =
   defaultMain $
-    testGroup
-      "fused-effects"
-      []
+    testCase
+      "fused-effects" $
+      let
+      in getChangeset fusedEffects (0 :: Int) @?= getChangeset transformer (0 :: Int)

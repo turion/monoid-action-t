@@ -1,8 +1,15 @@
 module Data.Monoid.RightAction.IntMap where
 
+-- containers
 import Data.IntMap
+
+-- changeset
 import Data.Monoid.RightAction (RightAction (..))
 
+{- | Insert or delete an element in an 'IntMap'.
+
+To change an element in an 'IntMap', see the indexed changes in @changeset-lens@.
+-}
 data IntMapChange a
   = Insert Int a
   | Delete Int

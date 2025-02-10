@@ -1,8 +1,12 @@
 module Data.Monoid.RightAction.Set where
 
-import Data.Monoid.RightAction (RightAction (..))
+-- containers
 import Data.Set
 
+-- changeset
+import Data.Monoid.RightAction (RightAction (..))
+
+-- | Insert or delete an element in a 'Set'.
 data SetChange k
   = Insert k
   | Delete k
