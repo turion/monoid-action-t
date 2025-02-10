@@ -116,7 +116,7 @@ Example:
 
 @
 -- Sets the value at key i to a
-i @~ a
+i .@ a
 @
 -}
 (.@) :: (MonadChangeset s (AtChangeset s (MaybeChange (IxValue s))) m) => Index s -> IxValue s -> m ()

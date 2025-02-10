@@ -54,10 +54,10 @@ tests =
          in execChangeset action (M.fromList [("hello", "hello"), ("world", "wOrLd")])
               @?= M.fromList [("hello", "HELLO"), ("world", "world")]
     , testCase "is inspectable" $
-        let action = 0 @~ False :: Changeset (IntMap Bool) (IntMapAtChangeset Bool) ()
+        let action = 0 .@ False :: Changeset (IntMap Bool) (IntMapAtChangeset Bool) ()
          in getChange action (IM.singleton 0 True) @?= atChangeset 0 (setJust False)
     , testCase "Last" $
-        let action = 0 @~ False
+        let action = 0 .@ False
          in execChangeset action (IM.singleton 0 True) @?= IM.singleton 0 False
     , testGroup
         "containers :+: AtChangeset"
@@ -65,7 +65,7 @@ tests =
             let action = do
                   change $ inL $ singleChange (Insert 0 True :: IntMapChange Bool)
                   -- Adding type signatures so GHC < 9 doesn't freak out
-                  mapChange inR (0 @~ False :: Changeset (IntMap Bool) (IntMapAtChangeset Bool) ())
+                  mapChange inR (0 .@ False :: Changeset (IntMap Bool) (IntMapAtChangeset Bool) ())
              in do
                   normaliseCoproduct (getChange action IM.empty)
                     @?= [ Left $ singleChange $ Insert 0 True
