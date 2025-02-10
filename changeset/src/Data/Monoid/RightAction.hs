@@ -45,6 +45,9 @@ instance (Semigroup m) => RightAction m (Regular m) where
 instance (RightAction m s) => RightAction (Maybe m) s where
   actRight s = maybe s (actRight s)
 
+-- FIXME more instances
+
+-- FIXME separate module
 {- | The coproduct of two monoids is a monoid that can contain values of either constituent.
 
 This is useful if you have two different actions on the same state type,
