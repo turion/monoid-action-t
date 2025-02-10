@@ -1,4 +1,4 @@
-# Revision history for monoid-action-t
+# Revision history for changeset
 
 ## 0.1.0.0 -- YYYY-mm-dd
 
