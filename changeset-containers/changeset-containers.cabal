@@ -1,4 +1,4 @@
-cabal-version: 3.0
+cabal-version: 2.4
 name: changeset-containers
 -- PVP summary:     +-+------- breaking API changes
 --                  | | +----- non-breaking API additions
@@ -80,7 +80,6 @@ test-suite changeset-containers-test
     changeset,
     changeset-containers,
     containers,
-    falsify ^>=0.2,
     monoid-extras,
     tasty ^>=1.4.2,
     tasty-hunit ^>=0.10.2,

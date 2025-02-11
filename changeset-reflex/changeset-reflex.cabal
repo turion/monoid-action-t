@@ -1,4 +1,4 @@
-cabal-version: 3.0
+cabal-version: 2.4
 name: changeset-reflex
 -- PVP summary:     +-+------- breaking API changes
 --                  | | +----- non-breaking API additions
@@ -9,7 +9,6 @@ description:
   A general state monad transformer with separate types for the state and the possible changes.
   It can be defined for any monoid action.
   The monoid represents "changes", "updates", "edits" or "diffs" on the state.
-
   This package exposes utilities to propagate changes along @reflex@ events.
 
 license: MIT

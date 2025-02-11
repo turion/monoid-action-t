@@ -1,4 +1,4 @@
-cabal-version: 3.0
+cabal-version: 2.4
 name: changeset
 -- PVP summary:     +-+------- breaking API changes
 --                  | | +----- non-breaking API additions
@@ -130,7 +130,6 @@ test-suite changeset-examples
   build-depends:
     base,
     changeset,
-    falsify ^>=0.2,
     monoid-extras,
     mtl,
     tasty ^>=1.4.2,
