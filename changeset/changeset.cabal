@@ -109,7 +109,6 @@ test-suite changeset-test
   build-depends:
     base,
     changeset,
-    falsify ^>=0.2,
     monoid-extras,
     tasty ^>=1.4.2,
     tasty-hunit ^>=0.10.2,
