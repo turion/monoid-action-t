@@ -90,7 +90,6 @@ test-suite changeset-lens-test
     changeset-containers,
     changeset-lens,
     containers,
-    falsify ^>=0.2,
     lens,
     monoid-extras,
     tasty ^>=1.4.2,
